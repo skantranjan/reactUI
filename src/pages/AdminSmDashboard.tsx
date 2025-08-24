@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import Layout from '../components/Layout';
 import MultiSelect from '../components/MultiSelect';
 import Pagination from '../components/Pagination';
-import * as XLSX from 'xlsx';
+import * as ExcelJS from 'exceljs';
 import { Link, useNavigate } from 'react-router-dom';
 import Loader from '../components/Loader';
 import { useMsal } from '@azure/msal-react';
@@ -555,7 +555,7 @@ const AdminSmDashboard: React.FC = () => {
     setCurrentPage(1); // Reset to first page when changing page size
   };
 
-  const handleExportToExcel = () => {
+  const handleExportToExcel = async () => {
     const exportData = currentData.map(row => ({
       '3PM Code': row.cm_code,
       '3PM Description': row.cm_description,
@@ -573,10 +573,32 @@ const AdminSmDashboard: React.FC = () => {
       'Is Active': row.is_active ? 'Yes' : 'No'
     }));
 
-    const worksheet = XLSX.utils.json_to_sheet(exportData);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Data');
-    XLSX.writeFile(workbook, 'cm-data.xlsx');
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Data');
+    
+    // Add headers
+    const headers = Object.keys(exportData[0]);
+    worksheet.addRow(headers);
+    
+    // Add data rows
+    exportData.forEach(row => {
+      worksheet.addRow(Object.values(row));
+    });
+    
+    // Auto-fit columns
+    worksheet.columns.forEach(column => {
+      column.width = 15;
+    });
+    
+    // Download the file
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'cm-data.xlsx';
+    link.click();
+    window.URL.revokeObjectURL(url);
   };
 
   // Handle file icon click to show signoff details

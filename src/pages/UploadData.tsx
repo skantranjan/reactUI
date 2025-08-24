@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { apiGet, apiPost } from '../utils/api';
-import * as XLSX from 'xlsx';
+import * as ExcelJS from 'exceljs';
 
 // Add CSS for spinning loader
 const spinningStyle = {
@@ -63,15 +63,36 @@ const UploadData: React.FC = () => {
     setUploadSuccess(null);
 
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
         const data = new Uint8Array(e.target?.result as ArrayBuffer);
-        const workbook = XLSX.read(data, { type: 'array' });
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(data.buffer);
+        const worksheet = workbook.getWorksheet(1); // Get first worksheet
+        
+        if (!worksheet) {
+          setError('No worksheet found in the Excel file');
+          setFileLoading(false);
+          return;
+        }
         
         // Convert to JSON
-        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        const jsonData: any[][] = [];
+        worksheet.eachRow((row, rowNumber) => {
+          if (rowNumber === 1) return; // Skip header row for now
+          const rowData: any[] = [];
+          row.eachCell((cell, colNumber) => {
+            rowData[colNumber - 1] = cell.value;
+          });
+          jsonData.push(rowData);
+        });
+        
+        // Add headers (first row)
+        const excelHeaders: string[] = [];
+        worksheet.getRow(1).eachCell((cell, colNumber) => {
+          excelHeaders[colNumber - 1] = cell.value?.toString() || '';
+        });
+        jsonData.unshift(excelHeaders); // Add headers at the beginning
         
         if (jsonData.length === 0) {
           setError('The Excel file is empty or contains no data');

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import Loader from '../components/Loader';
 import { apiGet } from '../utils/api';
-import * as XLSX from 'xlsx';
+import * as ExcelJS from 'exceljs';
 
 /**
  * Audit Log Entry Interface
@@ -184,7 +184,7 @@ const AuditLog: React.FC = () => {
 
   // ===== EXPORT FUNCTIONALITY =====
   
-  const exportToExcel = () => {
+  const exportToExcel = async () => {
     if (auditLogs.length === 0) return;
 
     const exportData = auditLogs.map(log => ({
@@ -201,12 +201,34 @@ const AuditLog: React.FC = () => {
       'Component Code': log.component_code || 'N/A'
     }));
 
-    const ws = XLSX.utils.json_to_sheet(exportData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Audit Logs');
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Audit Logs');
+    
+    // Add headers
+    const headers = Object.keys(exportData[0]);
+    worksheet.addRow(headers);
+    
+    // Add data rows
+    exportData.forEach(row => {
+      worksheet.addRow(Object.values(row));
+    });
+    
+    // Auto-fit columns
+    worksheet.columns.forEach(column => {
+      column.width = 15;
+    });
     
     const fileName = `audit_logs_${new Date().toISOString().split('T')[0]}.xlsx`;
-    XLSX.writeFile(wb, fileName);
+    
+    // Download the file
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    link.click();
+    window.URL.revokeObjectURL(url);
   };
 
   // ===== PAGINATION =====

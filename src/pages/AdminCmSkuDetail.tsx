@@ -6,7 +6,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import MultiSelect from '../components/MultiSelect';
 import EditComponentModal from '../components/EditComponentModal/EditComponentModal';
 import { Collapse } from 'react-collapse';
-import * as XLSX from 'xlsx';
+import * as ExcelJS from 'exceljs';
 import { apiGet, apiPost, apiPut, apiPatch, apiPostFormData, apiPutFormData } from '../utils/api';
 
 // Add CSS for spinning loader
@@ -3382,36 +3382,46 @@ const AdminCmSkuDetail: React.FC = () => {
             'Status': 'SKU Available - No Components'
           }));
           
-          // Create worksheet for SKU data
-          const skuWorksheet = XLSX.utils.json_to_sheet(skuExportData);
+          // Create worksheet for SKU data using ExcelJS
+          const skuWorkbook = new ExcelJS.Workbook();
+          const skuWorksheet = skuWorkbook.addWorksheet('SKU Data');
+          
+          // Add headers
+          const skuHeaders = Object.keys(skuExportData[0]);
+          skuWorksheet.addRow(skuHeaders);
           
           // Style the headers
-          const skuRange = XLSX.utils.decode_range(skuWorksheet['!ref'] || 'A1');
-          for (let col = skuRange.s.c; col <= skuRange.e.c; col++) {
-            const cellAddress = XLSX.utils.encode_cell({ r: 0, c: col });
-            if (skuWorksheet[cellAddress]) {
-              skuWorksheet[cellAddress].s = {
-                font: {
-                  bold: true,
-                  color: { rgb: '30EA03' }
-                },
-                fill: {
-                  fgColor: { rgb: 'E8F5E8' }
-                }
-              };
-            }
-          }
+          const skuHeaderRow = skuWorksheet.getRow(1);
+          skuHeaderRow.font = { bold: true, color: { argb: '30EA03' } };
+          skuHeaderRow.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'E8F5E8' }
+          };
           
-          // Create workbook and add SKU worksheet
-          const skuWorkbook = XLSX.utils.book_new();
-          XLSX.utils.book_append_sheet(skuWorkbook, skuWorksheet, 'SKU Data');
+          // Add data rows
+          skuExportData.forEach((row: any) => {
+            skuWorksheet.addRow(Object.values(row));
+          });
+          
+          // Auto-fit columns
+          skuWorksheet.columns.forEach(column => {
+            column.width = 15;
+          });
           
           // Generate filename for SKU export
           const timestamp = new Date().toISOString().split('T')[0];
           const skuFilename = `${cmCode}_sku_export_${timestamp}.xlsx`;
           
           // Download the SKU file
-          XLSX.writeFile(skuWorkbook, skuFilename);
+          const skuBuffer = await skuWorkbook.xlsx.writeBuffer();
+          const skuBlob = new Blob([skuBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+          const skuUrl = window.URL.createObjectURL(skuBlob);
+          const skuLink = document.createElement('a');
+          skuLink.href = skuUrl;
+          skuLink.download = skuFilename;
+          skuLink.click();
+          window.URL.revokeObjectURL(skuUrl);
           
           console.log(`✅ SKU Excel export completed: ${skuExportData.length} SKUs exported to ${skuFilename}`);
           console.log('ℹ️ Note: Components data was not available, exported SKU information instead');
@@ -3488,36 +3498,46 @@ const AdminCmSkuDetail: React.FC = () => {
         'Periods': component.periods || ''
       }));
       
-      // Create worksheet
-      const worksheet = XLSX.utils.json_to_sheet(exportData);
+      // Create worksheet using ExcelJS
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('Components Data');
+      
+      // Add headers
+      const headers = Object.keys(exportData[0]);
+      worksheet.addRow(headers);
       
       // Style the headers with bold and green color
-      const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1');
-      for (let col = range.s.c; col <= range.e.c; col++) {
-        const cellAddress = XLSX.utils.encode_cell({ r: 0, c: col });
-        if (worksheet[cellAddress]) {
-          worksheet[cellAddress].s = {
-            font: {
-              bold: true,
-              color: { rgb: '30EA03' } // Green color
-            },
-            fill: {
-              fgColor: { rgb: 'E8F5E8' } // Light green background
-            }
-          };
-        }
-      }
+      const headerRow = worksheet.getRow(1);
+      headerRow.font = { bold: true, color: { argb: '30EA03' } };
+      headerRow.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'E8F5E8' }
+      };
       
-      // Create workbook and add worksheet
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Components Data');
+      // Add data rows
+      exportData.forEach((row: any) => {
+        worksheet.addRow(Object.values(row));
+      });
+      
+      // Auto-fit columns
+      worksheet.columns.forEach(column => {
+        column.width = 15;
+      });
       
       // Generate filename with timestamp
       const timestamp = new Date().toISOString().split('T')[0];
       const filename = `${cmCode}_components_export_${timestamp}.xlsx`;
       
       // Download the file
-      XLSX.writeFile(workbook, filename);
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      link.click();
+      window.URL.revokeObjectURL(url);
       
       console.log(`✅ Excel export completed: ${exportData.length} rows exported to ${filename}`);
       
