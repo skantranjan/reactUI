@@ -42,16 +42,17 @@ const LandingPage: React.FC = () => {
         const userData = data.data;
         const userRole = userData.role;
         
-        console.log('Login successful:', { userData, userRole });
+        console.log('Login successful:', { userData, userRole, roleType: typeof userRole });
         
         // Store user data in AuthContext
         login(userData);
         
-        if (userRole === '1') {
+        // Flexible role checking - works with both string and number values
+        if (userRole === '1' || userRole === 1) {
           // Role 1: Admin - go to admin dashboard
           console.log('Redirecting Role 1 user to admin dashboard');
           navigate('/admin/cm-dashboard');
-        } else if (userRole === '2') {
+        } else if (userRole === '2' || userRole === 2) {
           // Role 2: CM User - go directly to CmSkuDetail with cm_code and cm_description
           const cmCode = userData.cm_code;
           const cmDescription = userData.cm_description;
@@ -68,12 +69,12 @@ const LandingPage: React.FC = () => {
           } else {
             setError('CM code not found for this user');
           }
-                 } else if (userRole === '3') {
-           // Role 3: SRM User - go directly to SrmDashboard
-           console.log('Role 3 user - redirecting to SRM Dashboard page');
-           navigate('/srm/srm-dashboard');
+        } else if (userRole === '3' || userRole === 3) {
+          // Role 3: SRM User - go directly to SrmDashboard
+          console.log('Role 3 user - redirecting to SRM Dashboard page');
+          navigate('/srm/srm-dashboard');
         } else {
-          setError('Invalid user role');
+          setError(`Invalid user role: ${userRole} (type: ${typeof userRole})`);
         }
       } else {
         setError(data.message || 'User not found');

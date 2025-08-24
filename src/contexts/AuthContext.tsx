@@ -4,7 +4,7 @@ interface User {
   id: number;
   username: string;
   email: string;
-  role: string;
+  role: string | number; // Allow both string and number
   is_active: boolean;
   cm_code?: string;
   cm_description?: string;
@@ -23,6 +23,8 @@ interface AuthContextType {
   isAdmin: boolean;
   isCMUser: boolean;
   isSRMUser: boolean;
+  // Add helper function for flexible role checking
+  checkRole: (role: string | number) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -42,6 +44,17 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
 
+  // Helper function to check if user has a specific role (flexible for string/number)
+  const checkRole = (targetRole: string | number): boolean => {
+    if (!user?.role) return false;
+    
+    // Convert both to strings for comparison
+    const userRoleStr = String(user.role);
+    const targetRoleStr = String(targetRole);
+    
+    return userRoleStr === targetRoleStr;
+  };
+
   const login = (userData: User) => {
     setUser(userData);
     // Store user data in localStorage for persistence
@@ -54,14 +67,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const isAuthenticated = !!user;
-  const isAdmin = user?.role === '1';
-  const isCMUser = user?.role === '2';
-  const isSRMUser = user?.role === '3';
+  // Flexible role checking - works with both string and number values
+  const isAdmin = checkRole('1') || checkRole(1);
+  const isCMUser = checkRole('2') || checkRole(2);
+  const isSRMUser = checkRole('3') || checkRole(3);
 
   // Debug logging for authentication status
   console.log('AuthContext Debug:', {
     user,
     userRole: user?.role,
+    userRoleType: typeof user?.role,
     isAuthenticated,
     isAdmin,
     isCMUser,
@@ -89,6 +104,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     isAdmin,
     isCMUser,
     isSRMUser,
+    checkRole, // Export the helper function
   };
 
   return (
